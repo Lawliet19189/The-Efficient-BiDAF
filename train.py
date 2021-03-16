@@ -22,6 +22,8 @@ from tensorboardX import SummaryWriter
 from tqdm import tqdm
 from ujson import load as json_load
 from util import collate_fn, SQuAD
+from transformers import AdamW
+from transformers.optimization import get_linear_schedule_with_warmup
 
 
 def main(args):
@@ -66,11 +68,6 @@ def main(args):
                                  maximize_metric=args.maximize_metric,
                                  log=log)
 
-    # Get optimizer and scheduler
-    optimizer = optim.Adadelta(model.parameters(), args.lr,
-                               weight_decay=args.l2_wd)
-    scheduler = sched.LambdaLR(optimizer, lambda s: 1.)  # Constant LR
-
     # Get data loader
     log.info('Building dataset...')
     train_dataset = SQuAD(args.train_record_file, args.use_squad_v2)
@@ -90,6 +87,17 @@ def main(args):
     log.info('Training...')
     steps_till_eval = args.eval_steps
     epoch = step // len(train_dataset)
+
+    # Get optimizer and scheduler
+    optimizer = AdamW(model.parameters(),
+                      lr=1e-4, betas=(0.9, 0.999),
+                      correct_bias=True
+                      )
+    scheduler = get_linear_schedule_with_warmup(
+        optimizer, num_warmup_steps=len(train_loader)*5,
+        num_training_steps=len(train_loader)*20
+    )
+
     while epoch != args.num_epochs:
         epoch += 1
         log.info(f'Starting epoch {epoch}...')
@@ -112,7 +120,7 @@ def main(args):
                 loss.backward()
                 nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
                 optimizer.step()
-                scheduler.step(step // batch_size)
+                scheduler.step()
                 ema(model, step // batch_size)
 
                 # Log info
