@@ -130,11 +130,11 @@ class TBiDAFAttention(nn.Module):
     def __init__(self, hidden_size, drop_prob=0.2):
         super(TBiDAFAttention, self).__init__()
         self.att = CrossAttender(dim=hidden_size,
-                                 depth=1,
+                                 depth=3,
                                  heads=12,
                                  #sandwich_coef=2,
                                  #residual_attn=True,
-                                 attn_num_mem_kv=16,
+                                 #attn_num_mem_kv=16,
                                  ff_glu=True,
                                  rel_pos_bias=False,
                                  dropout=0.1,

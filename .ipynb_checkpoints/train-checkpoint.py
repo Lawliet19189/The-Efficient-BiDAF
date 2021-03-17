@@ -103,8 +103,8 @@ def main(args):
     #                lr=0.5
     #)
     scheduler = get_linear_schedule_with_warmup(
-        optimizer, num_warmup_steps=len(train_loader)*2,# len(train_loader)*5
-        num_training_steps=len(train_loader)*40
+        optimizer, num_warmup_steps=len(train_loader)*3,# len(train_loader)*5
+        num_training_steps=len(train_loader)*20
     )
     
     #optimizer = optim.SGD(model.parameters(), lr=0.5)

@@ -39,18 +39,15 @@ class BiDAF(nn.Module):
                                     hidden_size=hidden_size,
                                     drop_prob=drop_prob)
 
-        # self.enc = layers.RNNEncoder(input_size=self.hidden_size,
-        #                              hidden_size=self.hidden_size,
-        #                              num_layers=1,
-        #                              drop_prob=drop_prob)
         self.enc = Encoder(
             dim=self.hidden_size,
             depth=1,
-            heads=8,
+            heads=3,
             ff_glu=True,
             ff_dropout=0.1,
             attn_dropout=0.1,
-            use_scalenorm=True
+            use_scalenorm=True,
+            position_infused_attn=True
         )
 
         self.att = layers.TBiDAFAttention(hidden_size=self.hidden_size,
@@ -58,12 +55,13 @@ class BiDAF(nn.Module):
 
         self.mod = Encoder(
             dim=2*self.hidden_size,
-            depth=1,
+            depth=3,
             heads=8,
             ff_glu=True,
             ff_dropout=0.1,
             attn_dropout=0.1,
-            use_scalenorm=True
+            use_scalenorm=True,
+            position_infused_attn=True
         )
 
         self.out = layers.BiDAFOutput(hidden_size=self.hidden_size,
