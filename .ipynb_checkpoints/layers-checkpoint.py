@@ -7,6 +7,8 @@ Author:
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch import einsum
+from einops import rearrange
 
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from util import masked_softmax
@@ -23,20 +25,39 @@ class Embedding(nn.Module):
         hidden_size (int): Size of hidden activations.
         drop_prob (float): Probability of zero-ing out activations
     """
-    def __init__(self, word_vectors, hidden_size, drop_prob):
+    def __init__(self, word_vectors, char_vectors, hidden_size, drop_prob):
         super(Embedding, self).__init__()
         self.drop_prob = drop_prob
         self.embed = nn.Embedding.from_pretrained(word_vectors)
+        self.char_embed = nn.Embedding.from_pretrained(char_vectors)
         self.proj = nn.Linear(word_vectors.size(1), hidden_size, bias=False)
-        self.hwy = HighwayEncoder(2, hidden_size)
+        self.char_proj = nn.Linear(char_vectors.size(1), hidden_size, bias=False)
+        self.hwy = HighwayEncoder(2, 2 * hidden_size) # 2*H due to concatination of char and word embeddings
 
-    def forward(self, x):
+    def forward(self, x, y):
         emb = self.embed(x)   # (batch_size, seq_len, embed_size)
         emb = F.dropout(emb, self.drop_prob, self.training)
         emb = self.proj(emb)  # (batch_size, seq_len, hidden_size)
-        emb = self.hwy(emb)   # (batch_size, seq_len, hidden_size)
+        #emb = self.hwy(emb)   # (batch_size, seq_len, hidden_size)
 
-        return emb
+        batch_size, sentence_length, max_word_length = y.size()
+        #y = y.contiguous().view(-1, max_word_length)
+        #print(y.shape)
+        
+        
+        char_emb = self.char_embed(y)
+        #transformed = rearrange(char_emb, 'b n c d -> b n (c d)')
+        #print(transformed.shape)
+        #print("Torch mean", torch.mean(char_emb, -2).shape)
+        #print(char_emb.shape)
+        char_emb = torch.mean(char_emb, -2)
+        char_emb = F.dropout(char_emb, self.drop_prob, self.training)
+        char_emb = self.char_proj(char_emb)
+        #char_emb = self.hwy(char_emb)
+        
+        concat_emb = torch.cat((char_emb, emb), 2)
+        concat_emb = self.hwy(concat_emb)
+        return concat_emb
 
 
 class HighwayEncoder(nn.Module):

@@ -29,7 +29,7 @@ class BiDAF(nn.Module):
         hidden_size (int): Number of features in the hidden state at each layer.
         drop_prob (float): Dropout probability.
     """
-    def __init__(self, word_vectors, hidden_size, drop_prob=0.):
+    def __init__(self, word_vectors, char_vectors, hidden_size, drop_prob=0.):
         super(BiDAF, self).__init__()
         self.hidden_size = 2 * hidden_size  # As we concatinating word vectors and Char
         # vectors
@@ -39,11 +39,11 @@ class BiDAF(nn.Module):
                                     drop_prob=drop_prob)
 
         self.enc = layers.RNNEncoder(input_size=self.hidden_size,
-                                     hidden_size=hidden_size,
+                                     hidden_size=self.hidden_size,
                                      num_layers=1,
                                      drop_prob=drop_prob)
 
-        self.att = layers.BiDAFAttention(hidden_size=2 * self.hidden_size,
+        self.att = layers.BiDAFAttention(hidden_size=2*self.hidden_size,
                                          drop_prob=drop_prob)
 
         self.mod = layers.RNNEncoder(input_size=8 * self.hidden_size,
