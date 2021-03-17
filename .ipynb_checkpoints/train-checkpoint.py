@@ -47,10 +47,12 @@ def main(args):
     # Get embeddings
     log.info('Loading embeddings...')
     word_vectors = util.torch_from_json(args.word_emb_file)
+    char_vectors = util.torch_from_json(args.char_emb_file)
 
     # Get model
     log.info('Building model...')
     model = BiDAF(word_vectors=word_vectors,
+                  char_vectors=char_vectors,
                   hidden_size=args.hidden_size,
                   drop_prob=args.drop_prob)
     model = nn.DataParallel(model, args.gpu_ids)
@@ -91,21 +93,22 @@ def main(args):
     epoch = step // len(train_dataset)
 
     # Get optimizer and scheduler
-    #optimizer = AdamW(model.parameters(),
-    #                  lr=5e-2, betas=(0.9, 0.999),
-    #                  correct_bias=False
-    #                  )
+    optimizer = AdamW(model.parameters(),
+                      lr=0.001, betas=(0.9, 0.999),
+                      correct_bias=False, weight_decay=0.01,
+                      eps=1e-08
+                      )
     #optimizer = optim.Adadelta(
     #                model.parameters(),
     #                lr=0.5
     #)
-    #scheduler = get_linear_schedule_with_warmup(
-    #    optimizer, num_warmup_steps=0,# len(train_loader)*5
-    #    num_training_steps=len(train_loader)*3
-    #)
+    scheduler = get_linear_schedule_with_warmup(
+        optimizer, num_warmup_steps=len(train_loader)*2,# len(train_loader)*5
+        num_training_steps=len(train_loader)*40
+    )
     
-    optimizer = optim.SGD(model.parameters(), lr=0.5)
-    scheduler = sched.CyclicLR(optimizer, base_lr=0.001, max_lr=0.5, step_size_up=len(train_loader)/2, mode="triangular2")
+    #optimizer = optim.SGD(model.parameters(), lr=0.5)
+    #scheduler = sched.CyclicLR(optimizer, base_lr=0.001, max_lr=0.5, step_size_up=len(train_loader), mode="triangular2")
 
     while epoch != args.num_epochs:
         epoch += 1
@@ -116,11 +119,13 @@ def main(args):
                 # Setup for forward
                 cw_idxs = cw_idxs.to(device)
                 qw_idxs = qw_idxs.to(device)
+                cc_idxs = cc_idxs.to(device)
+                qc_idxs = qc_idxs.to(device)
                 batch_size = cw_idxs.size(0)
                 optimizer.zero_grad()
 
                 # Forward
-                log_p1, log_p2 = model(cw_idxs, qw_idxs)
+                log_p1, log_p2 = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
                 y1, y2 = y1.to(device), y2.to(device)
                 loss = F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2)
                 loss_val = loss.item()
@@ -170,6 +175,13 @@ def main(args):
                                    step=step,
                                    split='dev',
                                    num_visuals=args.num_visuals)
+                del cw_idxs
+                del qw_idxs
+                del cc_idxs
+                del qc_idxs
+                del y1
+                del y2
+                torch.cuda.empty_cache()
 
 
 def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2):
@@ -185,10 +197,12 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2):
             # Setup for forward
             cw_idxs = cw_idxs.to(device)
             qw_idxs = qw_idxs.to(device)
+            cc_idxs = cc_idxs.to(device)
+            qc_idxs = qc_idxs.to(device)
             batch_size = cw_idxs.size(0)
 
             # Forward
-            log_p1, log_p2 = model(cw_idxs, qw_idxs)
+            log_p1, log_p2 = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
             y1, y2 = y1.to(device), y2.to(device)
             loss = F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2)
             nll_meter.update(loss.item(), batch_size)
