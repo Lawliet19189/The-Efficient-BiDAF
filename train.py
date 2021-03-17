@@ -93,21 +93,22 @@ def main(args):
     epoch = step // len(train_dataset)
 
     # Get optimizer and scheduler
-    #optimizer = AdamW(model.parameters(),
-    #                  lr=5e-2, betas=(0.9, 0.999),
-    #                  correct_bias=False
-    #                  )
+    optimizer = AdamW(model.parameters(),
+                      lr=0.001, betas=(0.9, 0.999),
+                      correct_bias=False, weight_decay=0.01,
+                      eps=1e-08
+                      )
     #optimizer = optim.Adadelta(
     #                model.parameters(),
     #                lr=0.5
     #)
-    #scheduler = get_linear_schedule_with_warmup(
-    #    optimizer, num_warmup_steps=0,# len(train_loader)*5
-    #    num_training_steps=len(train_loader)*3
-    #)
+    scheduler = get_linear_schedule_with_warmup(
+        optimizer, num_warmup_steps=len(train_loader)*2,# len(train_loader)*5
+        num_training_steps=len(train_loader)*40
+    )
     
-    optimizer = optim.SGD(model.parameters(), lr=0.5)
-    scheduler = sched.CyclicLR(optimizer, base_lr=0.001, max_lr=0.5, step_size_up=len(train_loader)/2, mode="triangular2")
+    #optimizer = optim.SGD(model.parameters(), lr=0.5)
+    #scheduler = sched.CyclicLR(optimizer, base_lr=0.001, max_lr=0.5, step_size_up=len(train_loader), mode="triangular2")
 
     while epoch != args.num_epochs:
         epoch += 1
@@ -174,6 +175,13 @@ def main(args):
                                    step=step,
                                    split='dev',
                                    num_visuals=args.num_visuals)
+                del cw_idxs
+                del qw_idxs
+                del cc_idxs
+                del qc_idxs
+                del y1
+                del y2
+                torch.cuda.empty_cache()
 
 
 def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2):

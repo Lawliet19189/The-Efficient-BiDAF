@@ -130,14 +130,14 @@ class TBiDAFAttention(nn.Module):
     def __init__(self, hidden_size, drop_prob=0.2):
         super(TBiDAFAttention, self).__init__()
         self.att = CrossAttender(dim=hidden_size,
-                                 depth=6,
-                                 heads=8,
-                                 #sandwich_coef=3,
+                                 depth=1,
+                                 heads=12,
+                                 #sandwich_coef=2,
                                  #residual_attn=True,
-                                 #attn_num_mem_kv=16,
+                                 attn_num_mem_kv=16,
                                  ff_glu=True,
                                  rel_pos_bias=False,
-                                 dropout=drop_prob,
+                                 dropout=0.1,
                                  position_infused_attn=True,
                                  #cross_attend=True,
                                  #only_cross=True,
@@ -147,9 +147,9 @@ class TBiDAFAttention(nn.Module):
     def forward(self, c, q, c_mask, q_mask):
         att = self.att(c, context=q, mask=c_mask, context_mask=q_mask)  # (batch_size,
         # c_len, hidden_size)
-
+        
         x = torch.cat([c, att], dim=2)  # (bs, c_len, 2 * hid_size)
-
+        #print (c.shape, q.shape, att.shape, x.shape)
         return x
 
 
@@ -168,7 +168,7 @@ class BiDAFOutput(nn.Module):
     """
     def __init__(self, hidden_size, drop_prob):
         super(BiDAFOutput, self).__init__()
-        self.att_linear_1 = nn.Linear(2 * hidden_size, 1)
+        self.att_linear_1 = nn.Linear(4 * hidden_size, 1)
         self.mod_linear_1 = nn.Linear(2 * hidden_size, 1)
 
         self.rnn = RNNEncoder(input_size=2 * hidden_size,
@@ -176,11 +176,13 @@ class BiDAFOutput(nn.Module):
                               num_layers=1,
                               drop_prob=drop_prob)
 
-        self.att_linear_2 = nn.Linear(2 * hidden_size, 1)
+        self.att_linear_2 = nn.Linear(4 * hidden_size, 1)
         self.mod_linear_2 = nn.Linear(2 * hidden_size, 1)
 
+        self.hidden_size = hidden_size
     def forward(self, att, mod, mask):
         # Shapes: (batch_size, seq_len, 1)
+        #print (self.hidden_size, att.shape, mod.shape)
         logits_1 = self.att_linear_1(att) + self.mod_linear_1(mod)
         mod_2 = self.rnn(mod, mask.sum(-1))
         logits_2 = self.att_linear_2(att) + self.mod_linear_2(mod_2)
