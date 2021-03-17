@@ -30,8 +30,10 @@ class Embedding(nn.Module):
         self.drop_prob = drop_prob
         self.embed = nn.Embedding.from_pretrained(word_vectors)
         self.char_embed = nn.Embedding.from_pretrained(char_vectors)
-        self.proj = nn.Linear(word_vectors.size(1), hidden_size, bias=False)
-        self.char_proj = nn.Linear(char_vectors.size(1), hidden_size, bias=False)
+        #self.proj = nn.Linear(word_vectors.size(1), hidden_size, bias=False)
+        #self.char_proj = nn.Linear(char_vectors.size(1), hidden_size, bias=False)
+        self.proj = FeedForward(word_vectors.size(1), hidden_size)
+        self.char_proj = FeedForward(char_vectors.size(1), hidden_size)
         self.hwy = HighwayEncoder(2, 2 * hidden_size) # 2*H due to concatination of char and word embeddings
 
     def forward(self, x, y):
@@ -220,13 +222,18 @@ class BiDAFOutput(nn.Module):
     """
     def __init__(self, hidden_size, drop_prob):
         super(BiDAFOutput, self).__init__()
-        self.att_linear_1 = nn.Linear(8 * hidden_size, 1)
-        self.mod_linear_1 = nn.Linear(2 * hidden_size, 1)
+        # self.att_linear_1 = nn.Linear(8 * hidden_size, 1)
+        # self.mod_linear_1 = nn.Linear(2 * hidden_size, 1)
+        self.att_linear_1 = FeedForward(8 * hidden_size, 1)
+        self.mod_linear_1 = FeedForward(2 * hidden_size, 1)
 
         self.rnn = RNNEncoder(input_size=2 * hidden_size,
                               hidden_size=hidden_size,
                               num_layers=1,
                               drop_prob=drop_prob)
+
+        # self.att_linear_2 = nn.Linear(8 * hidden_size, 1)
+        # self.mod_linear_2 = nn.Linear(2 * hidden_size, 1)
 
         self.att_linear_2 = nn.Linear(8 * hidden_size, 1)
         self.mod_linear_2 = nn.Linear(2 * hidden_size, 1)
@@ -242,3 +249,43 @@ class BiDAFOutput(nn.Module):
         log_p2 = masked_softmax(logits_2.squeeze(), mask, log_softmax=True)
 
         return log_p1, log_p2
+
+# Additional Layers
+
+def default(val, d):
+    if exists(val):
+        return val
+    return d() if isfunction(d) else d
+
+def exists(val):
+    return val is not None
+
+
+class GEGLU(nn.Module):  # adopted from paper: https://arxiv.org/abs/2002.05202
+    def __init__(self, dim_in, dim_out):
+        super().__init__()
+        self.proj = nn.Linear(dim_in, dim_out*2)
+
+    def forward(self, x):
+        x, gate = self.proj(x).chunk(2, dim=-1)
+        return x * F.gelu(gate)
+
+
+class FeedForward(nn.Module):
+    def __init__(self, dim, dim_out=None, mult=4, glu=True, dropout=0.):
+        super().__init__()
+        inner_dim = int(dim * mult)
+        dim_out = default(dim_out, dim)
+        project_in = nn.Sequential(
+            nn.Linear(dim, inner_dim),
+            nn.GELU()
+        ) if not glu else GEGLU(dim, inner_dim)
+
+        self.net = nn.Sequential(
+            project_in,
+            nn.Dropout(dropout),
+            nn.Linear(inner_dim, dim_out)
+        )
+
+    def forward(self, x):
+        return self.net(x)
