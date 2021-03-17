@@ -26,6 +26,8 @@ from transformers import AdamW
 from transformers.optimization import get_linear_schedule_with_warmup
 
 
+
+
 def main(args):
     # Set up logging and devices
     args.save_dir = util.get_save_dir(args.save_dir, args.name, training=True)
@@ -89,14 +91,21 @@ def main(args):
     epoch = step // len(train_dataset)
 
     # Get optimizer and scheduler
-    optimizer = AdamW(model.parameters(),
-                      lr=1e-4, betas=(0.9, 0.999),
-                      correct_bias=True
-                      )
-    scheduler = get_linear_schedule_with_warmup(
-        optimizer, num_warmup_steps=len(train_loader)*5,
-        num_training_steps=len(train_loader)*20
-    )
+    #optimizer = AdamW(model.parameters(),
+    #                  lr=5e-2, betas=(0.9, 0.999),
+    #                  correct_bias=False
+    #                  )
+    #optimizer = optim.Adadelta(
+    #                model.parameters(),
+    #                lr=0.5
+    #)
+    #scheduler = get_linear_schedule_with_warmup(
+    #    optimizer, num_warmup_steps=0,# len(train_loader)*5
+    #    num_training_steps=len(train_loader)*3
+    #)
+    
+    optimizer = optim.SGD(model.parameters(), lr=0.5)
+    scheduler = sched.CyclicLR(optimizer, base_lr=0.001, max_lr=0.5, step_size_up=len(train_loader)/2, mode="triangular2")
 
     while epoch != args.num_epochs:
         epoch += 1
