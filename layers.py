@@ -169,9 +169,9 @@ class BiDAFOutput(nn.Module):
     def __init__(self, hidden_size, drop_prob):
         super(BiDAFOutput, self).__init__()
         self.att_linear_1 = nn.Linear(4 * hidden_size, 1)
-        self.mod_linear_1 = nn.Linear(2 * hidden_size, 1)
+        self.mod_linear_1 = nn.Linear(1 * hidden_size, 1)
 
-        self.rnn = RNNEncoder(input_size=2 * hidden_size,
+        self.rnn = RNNEncoder(input_size=1 * hidden_size,
                               hidden_size=hidden_size,
                               num_layers=1,
                               drop_prob=drop_prob)

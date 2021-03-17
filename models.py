@@ -7,6 +7,7 @@ Author:
 import layers
 import torch
 import torch.nn as nn
+from x_transformers import Encoder
 
 
 class BiDAF(nn.Module):
@@ -43,15 +44,22 @@ class BiDAF(nn.Module):
                                      num_layers=1,
                                      drop_prob=drop_prob)
 
-        #self.att = layers.BiDAFAttention(hidden_size=2*self.hidden_size,
-        #                                 drop_prob=drop_prob)
         self.att = layers.TBiDAFAttention(hidden_size=2*self.hidden_size,
                                          drop_prob=drop_prob)
 
-        self.mod = layers.RNNEncoder(input_size=4 * self.hidden_size,
-                                     hidden_size=self.hidden_size,
-                                     num_layers=2,
-                                     drop_prob=drop_prob)
+        # self.mod = layers.RNNEncoder(input_size=4 * self.hidden_size,
+        #                              hidden_size=self.hidden_size,
+        #                              num_layers=2,
+        #                              drop_prob=drop_prob)
+        self.mod = Encoder(
+            dim=self.hidden_size,
+            depth=1,
+            heads=8,
+            ff_glu=True,
+            ff_dropout=0.1,
+            attn_dropout=0.1,
+            use_scalenorm=True
+        )
 
         self.out = layers.BiDAFOutput(hidden_size=self.hidden_size,
                                       drop_prob=drop_prob)
@@ -70,7 +78,8 @@ class BiDAF(nn.Module):
         att = self.att(c_enc, q_enc,
                        c_mask, q_mask)    # (batch_size, c_len, 8 * hidden_size)
 
-        mod = self.mod(att, c_len)        # (batch_size, c_len, 2 * hidden_size)
+        #mod = self.mod(att, c_len)        # (batch_size, c_len, 2 * hidden_size)
+        mod = self.mod(att, c_mask)
 
         out = self.out(att, mod, c_mask)  # 2 tensors, each (batch_size, c_len)
 
