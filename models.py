@@ -52,7 +52,7 @@ class BiDAF(nn.Module):
         #                              num_layers=2,
         #                              drop_prob=drop_prob)
         self.mod = Encoder(
-            dim=self.hidden_size,
+            dim=4*self.hidden_size,
             depth=1,
             heads=8,
             ff_glu=True,
@@ -79,7 +79,8 @@ class BiDAF(nn.Module):
                        c_mask, q_mask)    # (batch_size, c_len, 8 * hidden_size)
 
         #mod = self.mod(att, c_len)        # (batch_size, c_len, 2 * hidden_size)
-        mod = self.mod(att, c_mask)
+        
+        mod = self.mod(att, mask=c_mask)
 
         out = self.out(att, mod, c_mask)  # 2 tensors, each (batch_size, c_len)
 
