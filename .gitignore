@@ -4,3 +4,4 @@ __pycache__
 .texpadtmp/
 data/
 save/
+!*/data/glove.840B.300d-char.txt

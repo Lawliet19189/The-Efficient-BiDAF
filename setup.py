@@ -353,7 +353,8 @@ def pre_process(args):
     word_emb_mat, word2idx_dict = get_embedding(
         word_counter, 'word', emb_file=args.glove_file, vec_size=args.glove_dim, num_vectors=args.glove_num_vecs)
     char_emb_mat, char2idx_dict = get_embedding(
-        char_counter, 'char', emb_file=None, vec_size=args.char_dim)
+        char_counter, 'char', emb_file=args.glove_char_file, vec_size=args.char_dim,
+        num_vectors=args.glove_char_num_vecs)
 
     # Process dev and test sets
     dev_examples, dev_eval = process_file(args.dev_file, "dev", word_counter, char_counter)

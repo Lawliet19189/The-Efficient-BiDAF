@@ -13,6 +13,16 @@ def get_setup_args():
 
     add_common_args(parser)
 
+    ## User added
+    parser.add_argument('--glove_char_file',
+                        type=str,
+                        default='data/glove.840B.300d-char.txt')
+    parser.add_argument('--glove_char_num_vecs',
+                        type=int,
+                        default=94,
+                        help='Number of character vectors')
+    ##
+
     parser.add_argument('--train_url',
                         type=str,
                         default='https://github.com/chrischute/squad/data/train-v2.0.json')
@@ -58,7 +68,7 @@ def get_setup_args():
                         help='Max number of words in a question at test time')
     parser.add_argument('--char_dim',
                         type=int,
-                        default=64,
+                        default=300,
                         help='Size of char vectors (char-level embeddings)')
     parser.add_argument('--glove_dim',
                         type=int,
