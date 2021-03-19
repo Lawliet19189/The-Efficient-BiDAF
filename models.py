@@ -7,7 +7,6 @@ Author:
 import layers
 import torch
 import torch.nn as nn
-from x_transformers import Encoder
 
 
 class BiDAF(nn.Module):
@@ -39,13 +38,13 @@ class BiDAF(nn.Module):
                                     hidden_size=hidden_size,
                                     drop_prob=drop_prob)
 
-        self.enc = Encoder(
+        self.enc = layers.Encoder(
             dim=self.hidden_size,
             depth=1,
             heads=3,
             ff_glu=True,
-            ff_dropout=self.drop_prob,
-            attn_dropout=self.drop_prob,
+            ff_dropout=drop_prob,
+            attn_dropout=drop_prob,
             use_scalenorm=True,
             position_infused_attn=True
         )
@@ -53,19 +52,19 @@ class BiDAF(nn.Module):
         self.att = layers.TBiDAFAttention(hidden_size=self.hidden_size,
                                          drop_prob=drop_prob)
 
-        self.mod = Encoder(
+        self.mod = layers.Encoder(
             dim=2*self.hidden_size,
             depth=3,
             heads=6,
             ff_glu=True,
-            ff_dropout=self.drop_prob,
-            attn_dropout=self.drop_prob,
+            ff_dropout=drop_prob,
+            attn_dropout=drop_prob,
             use_scalenorm=True,
             position_infused_attn=True
         )
 
         self.out = layers.BiDAFOutput(hidden_size=self.hidden_size,
-                                      drop_prob=self.drop_prob)
+                                      drop_prob=drop_prob)
 
     def forward(self, cw_idxs, qw_idxs, cc_idxs, qc_idxs):
         c_mask = torch.zeros_like(cw_idxs) != cw_idxs
