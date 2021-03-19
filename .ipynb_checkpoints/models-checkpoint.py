@@ -44,8 +44,8 @@ class BiDAF(nn.Module):
             depth=1,
             heads=3,
             ff_glu=True,
-            ff_dropout=0.1,
-            attn_dropout=0.1,
+            ff_dropout=self.drop_prob,
+            attn_dropout=self.drop_prob,
             use_scalenorm=True,
             position_infused_attn=True
         )
@@ -58,14 +58,14 @@ class BiDAF(nn.Module):
             depth=3,
             heads=6,
             ff_glu=True,
-            ff_dropout=0.1,
-            attn_dropout=0.1,
+            ff_dropout=self.drop_prob,
+            attn_dropout=self.drop_prob,
             use_scalenorm=True,
             position_infused_attn=True
         )
 
         self.out = layers.BiDAFOutput(hidden_size=self.hidden_size,
-                                      drop_prob=drop_prob)
+                                      drop_prob=self.drop_prob)
 
     def forward(self, cw_idxs, qw_idxs, cc_idxs, qc_idxs):
         c_mask = torch.zeros_like(cw_idxs) != cw_idxs

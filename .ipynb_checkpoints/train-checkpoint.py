@@ -94,7 +94,7 @@ def main(args):
 
     # Get optimizer and scheduler
     optimizer = AdamW(model.parameters(),
-                      lr=0.001, betas=(0.8, 0.999),
+                      lr=1e-4, betas=(0.8, 0.999),
                       correct_bias=False, weight_decay=0.01,
                       eps=1e-08
                       )

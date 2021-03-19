@@ -181,8 +181,8 @@ class BiDAFOutput(nn.Module):
             depth=1,
             heads=8,
             ff_glu=True,
-            ff_dropout=0.1,
-            attn_dropout=0.1,
+            ff_dropout=drop_prob,
+            attn_dropout=drop_prob,
             use_scalenorm=True,
             position_infused_attn=True
         )
@@ -194,12 +194,19 @@ class BiDAFOutput(nn.Module):
     def forward(self, att, mod, mask):
         # Shapes: (batch_size, seq_len, 1)
         #print (self.hidden_size, att.shape, mod.shape)
-        logits_1 = self.att_linear_1(att) + self.mod_linear_1(mod)
-        mod_2 = self.rnn(mod, mask)
-        logits_2 = self.att_linear_2(att) + self.mod_linear_2(mod_2)
+#         logits_1 = self.att_linear_1(att) + self.mod_linear_1(mod)
+#         mod_2 = self.rnn(mod, mask)
+#         logits_2 = self.att_linear_2(att) + self.mod_linear_2(mod_2)
 
-        # Shapes: (batch_size, seq_len)
+#         # Shapes: (batch_size, seq_len)
+#         log_p1 = masked_softmax(logits_1.squeeze(), mask, log_softmax=True)
+#         log_p2 = masked_softmax(logits_2.squeeze(), mask, log_softmax=True)
+
+        
+        logits_1 = self.mod_linear_1(mod)
+        mod_2 = self.rnn(mod, mask)
+        logits_2 = self.mod_linear_2(mod_2)
         log_p1 = masked_softmax(logits_1.squeeze(), mask, log_softmax=True)
-        log_p2 = masked_softmax(logits_2.squeeze(), mask, log_softmax=True)
+        log_p2 = masked_softmax(logits_2.squeeze(), mask, log_softmax=True)        
 
         return log_p1, log_p2
