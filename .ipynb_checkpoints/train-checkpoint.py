@@ -23,7 +23,7 @@ from tqdm import tqdm
 from ujson import load as json_load
 from util import collate_fn, SQuAD
 from transformers import AdamW
-from transformers.optimization import get_linear_schedule_with_warmup
+from transformers.optimization import get_linear_schedule_with_warmup, get_constant_schedule_with_warmup
 
 
 
@@ -94,7 +94,7 @@ def main(args):
 
     # Get optimizer and scheduler
     optimizer = AdamW(model.parameters(),
-                      lr=0.001, betas=(0.9, 0.999),
+                      lr=0.001, betas=(0.8, 0.999),
                       correct_bias=False, weight_decay=0.01,
                       eps=1e-08
                       )
@@ -102,9 +102,12 @@ def main(args):
     #                model.parameters(),
     #                lr=0.5
     #)
-    scheduler = get_linear_schedule_with_warmup(
-        optimizer, num_warmup_steps=len(train_loader)*3,# len(train_loader)*5
-        num_training_steps=len(train_loader)*20
+    #scheduler = get_linear_schedule_with_warmup(
+    #    optimizer, num_warmup_steps=len(train_loader)*10,# len(train_loader)*5
+    #    num_training_steps=len(train_loader)*20
+    #)
+    scheduler = get_constant_schedule_with_warmup(
+        optimizer, num_warmup_steps=len(train_loader)*3
     )
     
     #optimizer = optim.SGD(model.parameters(), lr=0.5)
@@ -175,13 +178,13 @@ def main(args):
                                    step=step,
                                    split='dev',
                                    num_visuals=args.num_visuals)
-                del cw_idxs
-                del qw_idxs
-                del cc_idxs
-                del qc_idxs
-                del y1
-                del y2
-                torch.cuda.empty_cache()
+#                 del cw_idxs
+#                 del qw_idxs
+#                 del cc_idxs
+#                 del qc_idxs
+#                 del y1
+#                 del y2
+            torch.cuda.empty_cache()
 
 
 def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2):

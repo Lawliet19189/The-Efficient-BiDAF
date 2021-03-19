@@ -56,7 +56,7 @@ class BiDAF(nn.Module):
         self.mod = Encoder(
             dim=2*self.hidden_size,
             depth=3,
-            heads=8,
+            heads=6,
             ff_glu=True,
             ff_dropout=0.1,
             attn_dropout=0.1,

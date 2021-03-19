@@ -7,7 +7,7 @@ Author:
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from x_transformers import CrossAttender
+from x_transformers import CrossAttender, Encoder
 
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from util import masked_softmax
@@ -27,8 +27,8 @@ class Embedding(nn.Module):
     def __init__(self, word_vectors, char_vectors, hidden_size, drop_prob):
         super(Embedding, self).__init__()
         self.drop_prob = drop_prob
-        self.embed = nn.Embedding.from_pretrained(word_vectors)
-        self.char_embed = nn.Embedding.from_pretrained(char_vectors)
+        self.embed = nn.Embedding.from_pretrained(word_vectors, freeze=False)
+        self.char_embed = nn.Embedding.from_pretrained(char_vectors, freeze=False)
         self.proj = nn.Linear(word_vectors.size(1), hidden_size, bias=False)
         self.char_proj = nn.Linear(char_vectors.size(1), hidden_size, bias=False)
         self.hwy = HighwayEncoder(2, 2 * hidden_size) # 2*H due to concatination of char and word embeddings
@@ -78,59 +78,59 @@ class HighwayEncoder(nn.Module):
         return x
 
 
-class RNNEncoder(nn.Module):
-    """General-purpose layer for encoding a sequence using a bidirectional RNN.
+# class RNNEncoder(nn.Module):
+#     """General-purpose layer for encoding a sequence using a bidirectional RNN.
 
-    Encoded output is the RNN's hidden state at each position, which
-    has shape `(batch_size, seq_len, hidden_size * 2)`.
+#     Encoded output is the RNN's hidden state at each position, which
+#     has shape `(batch_size, seq_len, hidden_size * 2)`.
 
-    Args:
-        input_size (int): Size of a single timestep in the input.
-        hidden_size (int): Size of the RNN hidden state.
-        num_layers (int): Number of layers of RNN cells to use.
-        drop_prob (float): Probability of zero-ing out activations.
-    """
-    def __init__(self,
-                 input_size,
-                 hidden_size,
-                 num_layers,
-                 drop_prob=0.):
-        super(RNNEncoder, self).__init__()
-        self.drop_prob = drop_prob
-        self.rnn = nn.LSTM(input_size, hidden_size, num_layers,
-                           batch_first=True,
-                           bidirectional=True,
-                           dropout=drop_prob if num_layers > 1 else 0.)
+#     Args:
+#         input_size (int): Size of a single timestep in the input.
+#         hidden_size (int): Size of the RNN hidden state.
+#         num_layers (int): Number of layers of RNN cells to use.
+#         drop_prob (float): Probability of zero-ing out activations.
+#     """
+#     def __init__(self,
+#                  input_size,
+#                  hidden_size,
+#                  num_layers,
+#                  drop_prob=0.):
+#         super(RNNEncoder, self).__init__()
+#         self.drop_prob = drop_prob
+#         self.rnn = nn.LSTM(input_size, hidden_size, num_layers,
+#                            batch_first=True,
+#                            bidirectional=True,
+#                            dropout=drop_prob if num_layers > 1 else 0.)
 
-    def forward(self, x, lengths):
-        # Save original padded length for use by pad_packed_sequence
-        orig_len = x.size(1)
+#     def forward(self, x, lengths):
+#         # Save original padded length for use by pad_packed_sequence
+#         orig_len = x.size(1)
 
-        # Sort by length and pack sequence for RNN
-        lengths, sort_idx = lengths.sort(0, descending=True)
-        x = x[sort_idx]     # (batch_size, seq_len, input_size)
-        x = pack_padded_sequence(x, lengths.cpu(), batch_first=True)
+#         # Sort by length and pack sequence for RNN
+#         lengths, sort_idx = lengths.sort(0, descending=True)
+#         x = x[sort_idx]     # (batch_size, seq_len, input_size)
+#         x = pack_padded_sequence(x, lengths.cpu(), batch_first=True)
 
-        # Apply RNN
-        self.rnn.flatten_parameters()
-        x, _ = self.rnn(x)  # (batch_size, seq_len, 2 * hidden_size)
+#         # Apply RNN
+#         self.rnn.flatten_parameters()
+#         x, _ = self.rnn(x)  # (batch_size, seq_len, 2 * hidden_size)
 
-        # Unpack and reverse sort
-        x, _ = pad_packed_sequence(x, batch_first=True, total_length=orig_len)
-        _, unsort_idx = sort_idx.sort(0)
-        x = x[unsort_idx]   # (batch_size, seq_len, 2 * hidden_size)
+#         # Unpack and reverse sort
+#         x, _ = pad_packed_sequence(x, batch_first=True, total_length=orig_len)
+#         _, unsort_idx = sort_idx.sort(0)
+#         x = x[unsort_idx]   # (batch_size, seq_len, 2 * hidden_size)
 
-        # Apply dropout (RNN applies dropout after all but the last layer)
-        x = F.dropout(x, self.drop_prob, self.training)
+#         # Apply dropout (RNN applies dropout after all but the last layer)
+#         x = F.dropout(x, self.drop_prob, self.training)
 
-        return x
+#         return x
 
 
 class TBiDAFAttention(nn.Module):
     def __init__(self, hidden_size, drop_prob=0.2):
         super(TBiDAFAttention, self).__init__()
         self.att = CrossAttender(dim=hidden_size,
-                                 depth=3,
+                                 depth=6,
                                  heads=12,
                                  #sandwich_coef=2,
                                  #residual_attn=True,
@@ -171,10 +171,21 @@ class BiDAFOutput(nn.Module):
         self.att_linear_1 = nn.Linear(2 * hidden_size, 1)
         self.mod_linear_1 = nn.Linear(2 * hidden_size, 1)
 
-        self.rnn = RNNEncoder(input_size=2 * hidden_size,
-                              hidden_size=hidden_size,
-                              num_layers=1,
-                              drop_prob=drop_prob)
+#         self.rnn = RNNEncoder(input_size=2 * hidden_size,
+#                               hidden_size=hidden_size,
+#                               num_layers=1,
+#                               drop_prob=drop_prob)
+        
+        self.rnn = Encoder(
+            dim=2*hidden_size,
+            depth=1,
+            heads=8,
+            ff_glu=True,
+            ff_dropout=0.1,
+            attn_dropout=0.1,
+            use_scalenorm=True,
+            position_infused_attn=True
+        )
 
         self.att_linear_2 = nn.Linear(2 * hidden_size, 1)
         self.mod_linear_2 = nn.Linear(2 * hidden_size, 1)
@@ -184,7 +195,7 @@ class BiDAFOutput(nn.Module):
         # Shapes: (batch_size, seq_len, 1)
         #print (self.hidden_size, att.shape, mod.shape)
         logits_1 = self.att_linear_1(att) + self.mod_linear_1(mod)
-        mod_2 = self.rnn(mod, mask.sum(-1))
+        mod_2 = self.rnn(mod, mask)
         logits_2 = self.att_linear_2(att) + self.mod_linear_2(mod_2)
 
         # Shapes: (batch_size, seq_len)
