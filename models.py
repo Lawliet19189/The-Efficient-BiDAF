@@ -41,11 +41,11 @@ class BiDAF(nn.Module):
 
         self.enc = Encoder(
             dim=self.hidden_size,
-            depth=1,
+            depth=3,
             heads=3,
             ff_glu=True,
-            ff_dropout=0.1,
-            attn_dropout=0.1,
+            ff_dropout=drop_prob,
+            attn_dropout=drop_prob,
             use_scalenorm=True,
             position_infused_attn=True
         )
@@ -56,10 +56,10 @@ class BiDAF(nn.Module):
         self.mod = Encoder(
             dim=2*self.hidden_size,
             depth=3,
-            heads=6,
+            heads=8,
             ff_glu=True,
-            ff_dropout=0.1,
-            attn_dropout=0.1,
+            ff_dropout=drop_prob,
+            attn_dropout=drop_prob,
             use_scalenorm=True,
             position_infused_attn=True
         )
