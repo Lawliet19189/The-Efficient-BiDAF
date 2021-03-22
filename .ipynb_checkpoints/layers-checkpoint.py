@@ -24,14 +24,14 @@ class Embedding(nn.Module):
         hidden_size (int): Size of hidden activations.
         drop_prob (float): Probability of zero-ing out activations
     """
-    def __init__(self, word_vectors, char_vectors, hidden_size, drop_prob):
+    def __init__(self, word_vectors, char_vectors, hidden_size, char_hidden_size, drop_prob):
         super(Embedding, self).__init__()
         self.drop_prob = drop_prob
-        self.embed = nn.Embedding.from_pretrained(word_vectors, freeze=False)
+        self.embed = nn.Embedding.from_pretrained(word_vectors, freeze=True)
         self.char_embed = nn.Embedding.from_pretrained(char_vectors, freeze=False)
         self.proj = nn.Linear(word_vectors.size(1), hidden_size, bias=False)
-        self.char_proj = nn.Linear(char_vectors.size(1), hidden_size, bias=False)
-        self.hwy = HighwayEncoder(2, 2 * hidden_size) # 2*H due to concatination of char and word embeddings
+        self.char_proj = nn.Linear(char_vectors.size(1), char_hidden_size, bias=False)
+        self.hwy = HighwayEncoder(2, hidden_size + char_hidden_size) # 2*H due to concatination of char and word embeddings
 
     def forward(self, x, y):
         emb = self.embed(x)   # (batch_size, seq_len, embed_size)
@@ -137,7 +137,7 @@ class TBiDAFAttention(nn.Module):
                                  #attn_num_mem_kv=16,
                                  ff_glu=True,
                                  rel_pos_bias=False,
-                                 dropout=0.1,
+                                 dropout=drop_prob,
                                  position_infused_attn=True,
                                  #cross_attend=True,
                                  #only_cross=True,

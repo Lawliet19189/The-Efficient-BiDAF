@@ -30,14 +30,16 @@ class BiDAF(nn.Module):
         hidden_size (int): Number of features in the hidden state at each layer.
         drop_prob (float): Dropout probability.
     """
-    def __init__(self, word_vectors, char_vectors, hidden_size, drop_prob=0.):
+    def __init__(self, word_vectors, char_vectors, hidden_size, char_hidden_size, drop_prob=0.):
         super(BiDAF, self).__init__()
-        self.hidden_size = 2 * hidden_size  # As we concatinating word vectors and Char
+        self.drop_prob = drop_prob
+        self.hidden_size = hidden_size  + char_hidden_size # As we concatinating word vectors and Char
         # vectors
         self.emb = layers.Embedding(word_vectors=word_vectors,
                                     char_vectors=char_vectors,
                                     hidden_size=hidden_size,
-                                    drop_prob=drop_prob)
+                                    char_hidden_size=char_hidden_size,
+                                    drop_prob=self.drop_prob)
 
         self.enc = Encoder(
             dim=self.hidden_size,
